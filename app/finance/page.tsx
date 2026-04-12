@@ -334,7 +334,7 @@ export default function FinancePage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={75}
-                  label={({ category, percent }) => `${category} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                   labelLine={false}
                 >
                   {data!.categoryBreakdown.map((entry, i) => (
