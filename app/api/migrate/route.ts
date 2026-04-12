@@ -203,33 +203,49 @@ create trigger update_campaigns_updated_at before update on campaigns
   for each row execute function update_updated_at();
 `
 
-export async function POST() {
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  })
+const CONNECTION_STRINGS = [
+  process.env.DATABASE_URL,
+  `postgresql://postgres.hkagsntwwlwyzjhgpmpw:${process.env.SUPABASE_DB_PASSWORD || 'thisV0BJ5U0bvap8GSAw'}@aws-0-us-east-1.pooler.supabase.com:6543/postgres`,
+  `postgresql://postgres.hkagsntwwlwyzjhgpmpw:${process.env.SUPABASE_DB_PASSWORD || 'thisV0BJ5U0bvap8GSAw'}@aws-0-us-east-1.pooler.supabase.com:5432/postgres`,
+  `postgresql://postgres:${process.env.SUPABASE_DB_PASSWORD || 'thisV0BJ5U0bvap8GSAw'}@aws-0-us-east-1.pooler.supabase.com:5432/postgres?options=project%3Dhkagsntwwlwyzjhgpmpw`,
+].filter(Boolean) as string[]
 
-  try {
-    await client.connect()
-    await client.query(schema)
-    
-    const res = await client.query(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
-    )
-    
-    return NextResponse.json({
-      success: true,
-      tables: res.rows.map((r: { table_name: string }) => r.table_name)
+export async function POST() {
+  let lastError = ''
+  
+  for (const connStr of CONNECTION_STRINGS) {
+    const client = new Client({
+      connectionString: connStr,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 10000,
     })
-  } catch (error) {
-    console.error('Migration error:', error)
-    return NextResponse.json(
-      { success: false, error: String(error) },
-      { status: 500 }
-    )
-  } finally {
-    await client.end()
+
+    try {
+      await client.connect()
+      console.log('Connected using:', connStr.substring(0, 60))
+      await client.query(schema)
+      
+      const res = await client.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
+      )
+      
+      await client.end()
+      return NextResponse.json({
+        success: true,
+        tables: res.rows.map((r: { table_name: string }) => r.table_name),
+        connectedVia: connStr.substring(0, 50)
+      })
+    } catch (error) {
+      console.error('Connection failed:', connStr.substring(0, 50), String(error))
+      lastError = String(error)
+      try { await client.end() } catch { }
+    }
   }
+  
+  return NextResponse.json(
+    { success: false, error: lastError, tried: CONNECTION_STRINGS.length },
+    { status: 500 }
+  )
 }
 
 export async function GET() {
