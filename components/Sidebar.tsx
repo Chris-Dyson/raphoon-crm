@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Settings,
   Zap,
+  BarChart2,
 } from 'lucide-react'
 
 const nav = [
@@ -20,6 +21,7 @@ const nav = [
   { href: '/campaigns', label: 'Campaigns', icon: Mail },
   { href: '/revenue', label: 'Revenue', icon: DollarSign },
   { href: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { href: '/finance', label: 'Finance', icon: BarChart2 },
 ]
 
 export default function Sidebar() {
