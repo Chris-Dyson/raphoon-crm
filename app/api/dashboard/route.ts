@@ -1,31 +1,29 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+export const runtime = 'edge';
+export const revalidate = 60; // Cache for 60 seconds to prevent hammering the DB
+
 export async function GET() {
   const [
     { count: totalContacts },
-    { data: byStatus },
-    { data: byProduct },
+    { data: allContacts },
     { data: revenue },
     { data: recentActivities },
     { data: overdueTasks },
     { data: recentContacts },
   ] = await Promise.all([
     supabase.from('contacts').select('*', { count: 'exact', head: true }),
-    Promise.resolve({ data: null }),
-    supabase.from('contacts').select('product').not('product', 'is', null),
+    supabase.from('contacts').select('status, product').limit(5000),
     supabase.from('revenue_entries').select('*').eq('status', 'active'),
     supabase.from('activities').select('*, contacts(name, product)').order('created_at', { ascending: false }).limit(10),
     supabase.from('tasks').select('*, contacts(name)').is('completed_at', null).lt('due_at', new Date().toISOString()).limit(5),
-    supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(5),
+    supabase.from('contacts').select('id, name, email, product, status, created_at').order('created_at', { ascending: false }).limit(5),
   ])
 
   // Calculate by status
   const statusCounts: Record<string, number> = {}
   const productCounts: Record<string, number> = {}
-  
-  // Get all contacts for counting
-  const { data: allContacts } = await supabase.from('contacts').select('status, product')
   
   for (const c of allContacts || []) {
     statusCounts[c.status] = (statusCounts[c.status] || 0) + 1
